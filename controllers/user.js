@@ -14,6 +14,7 @@ async function auth(user) {
 
 async function create(info, image) {
   try {
+    info.email = info.email.toLowerCase();
     let user = await User.findOne({ identification: info.identification });
     if (!user) user = new User();
     if (!user.password || user.password == "") user.set(info);
@@ -111,6 +112,7 @@ async function findFirstIdentificationMatch(identification) {
 }
 
 async function find(query, page) {
+  console.log("aqui estoy haciendo login");
   const results = await User.find({
     $or: [
       { name: { $regex: query, $options: "i" } },
