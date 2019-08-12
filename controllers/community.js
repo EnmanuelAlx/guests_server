@@ -240,22 +240,17 @@ async function findCommunityUserByIdOrReference(
   identification,
   reference
 ) {
-  const resident = await User.findOne({
-    identification
-  });
-  let communityUser;
-  if (resident)
-    communityUser = await CommunityUser.findOne({
-      community: communityId,
-      user: resident.id
-    });
-
-  if (!communityUser)
-    communityUser = await CommunityUser.findOne({
-      community: communityId,
-      reference
-    });
-  return communityUser;
+  let resident = null;
+  if(reference){
+    resident = await CommunityUser.findOne({"reference": reference, "community": communityId}); 
+  }
+  else{
+    let user = await User.findOne({"identification": identification});
+    if(!user) return null;
+    resident = await CommunityUser.findOne({"user": user._id, "community": communityId});
+  }
+  console.log(resident);
+  return resident;
 }
 
 async function residents(community, user) {
