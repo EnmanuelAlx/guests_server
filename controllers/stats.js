@@ -4,29 +4,32 @@ const moment = require("moment-timezone");
 const mongoose = require("mongoose");
 
 async function visitsTypeCountByMonth(community, month, user) {
-  const from = moment()
-    .tz(user.timezone)
-    .date(1)
-    .month(month - 1)
-    .format("YYYY-MM-DD");
-
-  const to = moment(from).add(30, "days");
+  // const from = moment()
+  //   .tz(user.timezone)
+  //   // .date(1)
+  //   // .month(month - 1)
+  //   .format("YYYY-MM-DD");
+  // const to = moment(from).add(30, "days").format("YYYY-MM-DD");
+  const from = moment().tz(user.timezone).startOf('month').format('YYYY-MM-DD');
+  const to   = moment().tz(user.timezone).endOf('month').format('YYYY-MM-DD');
   const result = [];
   result[0] = await countByType(community, from, to, "SCHEDULED");
   result[1] = await countByType(community, from, to, "FREQUENT");
   result[2] = await countByType(community, from, to, "SPORADIC");
   result[3] = await countByType(community, from, to, "NOT EXPECTED");
+
   return result;
 }
-
+// a85651
 async function visitCountByMonth(community, month, user) {
-  let from = moment()
-    .tz(user.timezone)
-    .date(1)
-    .month(month - 1)
-    .format("YYYY-MM-DD");
+  // let from = moment()
+  //   .tz(user.timezone)
+  //   .date(1)
+  //   .month(month - 1)
+    // .format("YYYY-MM-DD");
+  let from = moment().tz(user.timezone).startOf('month').format('YYYY-MM-DD');
   let to = moment(from).add(7, "days");
-  const total = [];
+  let total = [];
   for (let i = 0; i < 4; i++) {
     total[i] = await countByType(community, from, to);
     from = to;
@@ -66,12 +69,7 @@ async function findVisitsBetween(community, from, to, type) {
   ]);
 }
 async function countByPartOfDay(community, month, user) {
-  const from = moment()
-    .tz(user.timezone)
-    .date(1)
-    .month(month - 1)
-    .format("YYYY-MM-DD");
-
+  const from = moment().tz(user.timezone).startOf('month').format('YYYY-MM-DD');
   const to = moment(from).add(30, "days");
   const visits = await findVisitsBetween(community, from, to);
   const result = [];
