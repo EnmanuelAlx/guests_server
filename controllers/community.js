@@ -249,7 +249,7 @@ async function findCommunityUserByIdOrReference(
     if(!user) return null;
     resident = await CommunityUser.findOne({"user": user._id, "community": communityId});
   }
-  console.log(resident);
+
   return resident;
 }
 

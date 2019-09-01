@@ -169,6 +169,11 @@ router.post(
   handler(visit.check, (req, res, next) => [req.params.visit, "IN", req.user])
 );
 
+router.post(
+  "/:visit/addPhotos",
+  handler(visit.addPhotos, (req, res, next) => [req.params.visit, req.files, req.user])
+);
+
 /**
  * @swagger
  * /visits/{visit}/checkOut:

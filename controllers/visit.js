@@ -105,6 +105,43 @@ async function check(visit, type) {
   return check;
 }
 
+async function addPhotos(identification, photo) {
+  const photos = await uploadFiles(photo);
+  if(photos.length ===0){
+    return;
+  }
+  const guest = await findGuest(identification);
+  let visit = await Visit.find({
+    guest: guest.id,
+  }).sort({
+    created_at: -1
+  });
+  let visit2 = visit[0];
+  visit2.images = photos
+  visit2.save();
+}
+
+
+
+async function uploadFiles(files) {
+  const paths = [];
+  for (const key in files) {
+    const path = await uploadFile("storage", files[key]);
+    paths.push(path);
+  }
+  return paths;
+}
+
+async function uploadFile(dir, file) {
+  const URL = process.env.URL || "http://localhost:3000";
+  return new Promise((resolve, reject) => {
+    file.mv(`${dir}/${file.name}`, err => {
+      if (err) reject(err);
+      resolve(`${URL}/${dir}/${file.name}`);
+    });
+  });
+}
+
 async function runAccessWebhooks(visitId) {
   const visit = await Visit.findOne({ _id: visitId });
   await Webhook.run(visit.community, "ON_ACCESS", visit);
@@ -120,7 +157,6 @@ async function guestIsScheduled(
 ) {
   await findIfUserIsCommunitySecure(community, userWhoAsk);
   let visit;
-
   if (token) {
     visit = await Visit.find({
       token: `${community}-${token}`
@@ -144,7 +180,6 @@ async function guestIsScheduled(
 
   if (visitsFiltered.length === 0)
     throw new ApiError("Visita no encontrada", 404);
-
   return await fillVisit(visitsFiltered[0]);
 }
 
@@ -417,5 +452,7 @@ module.exports = {
   communityVisits,
   giveAccess,
   detail,
-  findByGuest
+  findByGuest,
+  addPhotos, 
+  uploadFiles
 };
