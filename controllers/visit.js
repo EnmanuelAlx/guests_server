@@ -165,10 +165,12 @@ async function guestIsScheduled(
     });
   } else {
     const guest = await findGuest(identification, email, name);
-    if (!guest) throw new ApiError("Visitante no Existente", 404);
+    if (guest == null){ 
+      throw new ApiError("Visitante no Existente", 404);
+    }
     visit = await Visit.find({
-      guest: guest.id,
-      community
+      guest: guest._id,
+      community: community
     }).sort({
       created_at: -1
     });
@@ -177,9 +179,12 @@ async function guestIsScheduled(
   const visits = await Promise.all(visit.map(item => evaluateVisit(item)));
 
   const visitsFiltered = visits.filter(item => item != null);
-
-  if (visitsFiltered.length === 0)
-    throw new ApiError("Visita no encontrada", 404);
+  
+  if(visitsFiltered[0]){
+    return await fillVisit(visit[0]);
+  }
+  else if (visitsFiltered.length === 0)
+    throw new ApiError("Visita no encontrada 2", 404);
   return await fillVisit(visitsFiltered[0]);
 }
 
@@ -191,11 +196,13 @@ async function fillVisit(visit) {
 }
 
 async function findGuest(identification = "", email = "", name = "") {
-  const user = await User.findOne({
-    $or: [{ identification }, { email }, { name }]
-  });
-  const company = await Company.findOne({ name });
-  return user ? user : company;
+  const user = await User.findOne().or([{identification}, {email}, {name}]);
+  if(user)
+    return user;
+  else{
+    const company = await Company.findOne({ name });
+    return company;
+  }
 }
 
 async function evaluateVisit(visit) {
