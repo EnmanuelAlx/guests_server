@@ -1,4 +1,4 @@
-const { Community, CommunityUser, User, Visit } = require("../models");
+const { Community, CommunityUser, User, Visit, Rule, CommunityRule } = require("../models");
 const VisitCtrllr = require("./visit");
 const ApiError = require("../utils/ApiError");
 const mongoose = require("mongoose");
@@ -7,7 +7,14 @@ const { findIfUserIsGranted, findIfUserIsCommunitySecure } = require("./utils");
 
 // TODO SECURE THIS ROUTE!
 async function create(info, image, user) {
-  try {
+  // try {
+    let rule = null;
+    if(info.rule != "undefined"){
+      info.rule = JSON.parse(info.rule);
+      rule = await Rule.findOneOrCreate({'name' : info.rule.name}, {'name': info.rule.name});
+      console.log(rule);
+    }
+    await rule.save();
     if (typeof info.address === "string")
       info.address = JSON.parse(info.address);
     const community = new Community(info);
@@ -15,7 +22,6 @@ async function create(info, image, user) {
       const imageUrl = await uploadFile("storage", image);
       community.image = imageUrl;
     }
-
     await community.save();
     const communityUser = new CommunityUser({
       community: community.id,
@@ -24,10 +30,15 @@ async function create(info, image, user) {
       status: "APPROVED"
     });
     await communityUser.save();
+    const communityRule = new CommunityRule({
+      community,
+      rule
+    })
+    await communityRule.save();
     return community;
-  } catch (e) {
-    throw new ApiError("Error en los datos ingresados", 400);
-  }
+  // } catch (e) {
+  //   throw new ApiError("Error en los datos ingresados", 400);
+  // }
 }
 
 async function update(id, communityInfo, user) {
@@ -184,6 +195,11 @@ async function giveAccessBySecurity(
   files,
   user
 ) {
+  let validation = await checkRule(communityId);
+  console.log({validation})
+  if(validation){
+    throw new ApiError("Usted no tiene permisos para esto", 412);
+  }
   await findIfUserIsCommunitySecure(communityId, user);
 
   const guest = await User.findOneOrCreate(
@@ -214,6 +230,23 @@ async function giveAccessBySecurity(
   await visit.save();
   await VisitCtrllr.check(visit.id, "IN");
   return { success: true };
+}
+
+async function checkRule(communityId){
+  let rules = await CommunityRule.find({community: communityId});
+  var desition =  rules.find(async element=>{
+    var rule = await Rule.findOne({_id : element.rule});
+    if(rule.name == 'security'){
+      return true;
+    }
+  })
+  console.log(desition);
+  if(typeof desition != 'undefined'){
+    return true;
+  }
+  else{
+    return false;
+  }
 }
 
 async function uploadFiles(files) {

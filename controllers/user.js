@@ -112,7 +112,6 @@ async function findFirstIdentificationMatch(identification) {
 }
 
 async function find(query, page) {
-  console.log("aqui estoy haciendo login");
   const results = await User.find({
     $or: [
       { name: { $regex: query, $options: "i" } },
