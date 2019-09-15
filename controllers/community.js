@@ -7,14 +7,17 @@ const { findIfUserIsGranted, findIfUserIsCommunitySecure } = require("./utils");
 
 // TODO SECURE THIS ROUTE!
 async function create(info, image, user) {
-  // try {
+  try {
+    let rules = [];
     let rule = null;
-    if(info.rule != "undefined"){
-      info.rule = JSON.parse(info.rule);
-      rule = await Rule.findOneOrCreate({'name' : info.rule.name}, {'name': info.rule.name});
-      console.log(rule);
+    if(info.rules != "undefined"){
+      info.rules = JSON.parse(info.rules);
+      for (const rul in info.rules) {
+        rule = await Rule.findOneOrCreate({'name' : info.rules[rul]}, {'name': info.rules[rul]});
+        await rule.save();
+        rules.push(rule);
+      }
     }
-    await rule.save();
     if (typeof info.address === "string")
       info.address = JSON.parse(info.address);
     const community = new Community(info);
@@ -30,15 +33,17 @@ async function create(info, image, user) {
       status: "APPROVED"
     });
     await communityUser.save();
-    const communityRule = new CommunityRule({
-      community,
-      rule
-    })
-    await communityRule.save();
+    rules.forEach(async rule => {
+      const communityRule = new CommunityRule({
+        community,
+        rule
+      })
+      await communityRule.save();
+    });
     return community;
-  // } catch (e) {
-  //   throw new ApiError("Error en los datos ingresados", 400);
-  // }
+  } catch (e) {
+    throw new ApiError("Error en los datos ingresados", 400);
+  }
 }
 
 async function update(id, communityInfo, user) {
@@ -145,25 +150,30 @@ async function requestAccess(
   files,
   user
 ) {
+  let rule = await verifyRule(communityId, 'resident');
+  let resident = null;
   await findIfUserIsCommunitySecure(communityId, user);
   const guest = await User.findOneOrCreate(
     { identification },
     { identification, name }
   );
-  const communityUser = await findCommunityUserByIdOrReference(
-    communityId,
-    residentIdentification,
-    reference
-  );
-  if (!communityUser) throw new ApiError("Residente no encontrado", 404);
-
-  const resident = await User.findOne({
-    _id: communityUser.user,
-    "devices.0": { $exists: true }
-  });
-
-  if (!resident) throw new ApiError("Dispositivo del residente no encontrado", 412);
-
+  if(rule){
+    const communityUser = await findCommunityUserByIdOrReference(
+      communityId,
+      residentIdentification,
+      reference
+    );
+    if (!communityUser) throw new ApiError("Residente no encontrado", 404);
+  
+    resident = await User.findOne({
+      _id: communityUser.user,
+      "devices.0": { $exists: true }
+    });
+  
+    if (!resident) throw new ApiError("Dispositivo del residente no encontrado", 412);
+  }else{
+    resident = user;
+  }
   const photos = await uploadFiles(files);
   const visit = new Visit({
     community: communityId,
@@ -189,15 +199,26 @@ async function requestAccess(
   return { success: true };
 }
 
+async function verifyRule(community, nameRule){
+  let rule = await Rule.findOne({'name' : nameRule});
+  if(rule){
+    let communityRule = await CommunityRule.find({community, rule: rule._id});
+    if(communityRule.length >0)
+      return false;
+    return true;
+  }
+  return true;
+
+}
+
 async function giveAccessBySecurity(
   communityId,
   { name, identification, residentIdentification, reference },
   files,
   user
 ) {
-  let validation = await checkRule(communityId);
-  console.log({validation})
-  if(validation){
+  let validation = await verifyRule(communityId, 'security');
+  if(!validation){
     throw new ApiError("Usted no tiene permisos para esto", 412);
   }
   await findIfUserIsCommunitySecure(communityId, user);
@@ -232,22 +253,6 @@ async function giveAccessBySecurity(
   return { success: true };
 }
 
-async function checkRule(communityId){
-  let rules = await CommunityRule.find({community: communityId});
-  var desition =  rules.find(async element=>{
-    var rule = await Rule.findOne({_id : element.rule});
-    if(rule.name == 'security'){
-      return true;
-    }
-  })
-  console.log(desition);
-  if(typeof desition != 'undefined'){
-    return true;
-  }
-  else{
-    return false;
-  }
-}
 
 async function uploadFiles(files) {
   const paths = [];
