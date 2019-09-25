@@ -100,6 +100,11 @@ const VisitSchema = new Schema(
       required: true,
       default: "America/Bogota"
     },
+    note: {
+      type: String,
+      required: false,
+      default : ''
+    },
     token: {
       type: String,
       fake: "random.alphaNumeric"

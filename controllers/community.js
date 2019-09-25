@@ -146,10 +146,11 @@ async function people(communityId, skip, limit) {
 
 async function requestAccess(
   communityId,
-  { name, identification, residentIdentification, reference },
+  { name, identification, residentIdentification, reference, note },
   files,
   user
 ) {
+  console.log({note, residentIdentification, reference});
   let rule = await verifyRule(communityId, 'resident');
   let resident = null;
   await findIfUserIsCommunitySecure(communityId, user);
@@ -157,7 +158,7 @@ async function requestAccess(
     { identification },
     { identification, name }
   );
-  if(rule){
+  if(rule || residentIdentification || reference){
     const communityUser = await findCommunityUserByIdOrReference(
       communityId,
       residentIdentification,
@@ -171,10 +172,13 @@ async function requestAccess(
     });
   
     if (!resident) throw new ApiError("Dispositivo del residente no encontrado", 412);
-  }else{
+  }else if (note){
     resident = user;
+  }else {
+    throw new ApiError("Debe adjuntar una nota de hacia donde va el visitante", 404);
   }
   const photos = await uploadFiles(files);
+  console.log({note});
   const visit = new Visit({
     community: communityId,
     resident: resident.id,
@@ -183,9 +187,10 @@ async function requestAccess(
     creator: user.id,
     timezone: resident.timezone,
     images: photos,
-    token: ""
+    token: "",
+    note: note
   });
-
+  console.log({visit});
   await visit.save();
 
   await send(resident.devices, "UNEXPECTED VISIT", {
@@ -213,10 +218,11 @@ async function verifyRule(community, nameRule){
 
 async function giveAccessBySecurity(
   communityId,
-  { name, identification, residentIdentification, reference },
+  { name, identification, residentIdentification, reference, note },
   files,
   user
 ) {
+  console.log(note);
   let validation = await verifyRule(communityId, 'security');
   if(!validation){
     throw new ApiError("Usted no tiene permisos para esto", 412);
@@ -245,7 +251,8 @@ async function giveAccessBySecurity(
     creator: user.id,
     timezone: user.timezone,
     images: photos,
-    token: ""
+    token: "",
+    note: note
   });
 
   await visit.save();
